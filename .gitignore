@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit these — they contain API keys!)
+.env
+.env.*
+backend.env
+
+# Production build
+dist/
+dist-ssr/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
