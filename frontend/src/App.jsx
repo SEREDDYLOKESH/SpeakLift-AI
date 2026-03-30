@@ -124,13 +124,19 @@ function App() {
   const bottomRef = useRef(null);
   const recognitionRef = useRef(null);
   const userTextRef = useRef('');
+  const lastInterimRef = useRef('');       // last seen interim text (fallback for fast speech)
+  const silenceTimerRef = useRef(null);   // fires after final result + silence
+  const interimTimerRef = useRef(null);   // fires when only interim seen (fast speech fallback)
+  const restartTimerRef = useRef(null);   // delays mic restart
 
   // Refs so callbacks always get latest values
   const isSessionActiveRef = useRef(false);
   const isAiSpeakingRef = useRef(false);
   const isThinkingRef = useRef(false);
   const processUserSpeechRef = useRef();
-  const restartTimerRef = useRef(null);
+
+  const SILENCE_MS = 1200;        // send after 1.2s silence following a FINAL result
+  const INTERIM_FALLBACK_MS = 2500; // send after 2.5s if only interim results (fast speech)
 
   // Sync refs
   useEffect(() => { isSessionActiveRef.current = isSessionActive; }, [isSessionActive]);
@@ -148,19 +154,46 @@ function App() {
     if (!showHistory) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog, interimText, isThinking, showHistory]);
 
-  // Safe mic restart (with small delay to avoid InvalidStateError)
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+  };
+
+  const clearInterimTimer = () => {
+    if (interimTimerRef.current) { clearTimeout(interimTimerRef.current); interimTimerRef.current = null; }
+  };
+
+  // Dispatch accumulated text to processUserSpeech and stop recognition
+  const dispatchSpeech = (recognition, text) => {
+    if (!text || !isSessionActiveRef.current) return;
+    clearSilenceTimer();
+    clearInterimTimer();
+    userTextRef.current = '';
+    lastInterimRef.current = '';
+    try { recognition.stop(); } catch (e) {}
+    processUserSpeechRef.current?.(text);
+  };
+
+  // Stop recognition and kill any pending timers
+  const stopListening = () => {
+    clearSilenceTimer();
+    clearInterimTimer();
+    if (restartTimerRef.current) { clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
+    try { recognitionRef.current?.stop(); } catch (e) {}
+  };
+
+  // Start recognition after a short delay (avoids InvalidStateError)
   const safeStartListening = () => {
     if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
     restartTimerRef.current = setTimeout(() => {
       if (
         isSessionActiveRef.current &&
         !isAiSpeakingRef.current &&
-        !isThinkingRef.current &&
-        recognitionRef.current
+        !isThinkingRef.current
       ) {
-        try { recognitionRef.current.start(); } catch (e) { /* already started */ }
+        userTextRef.current = ''; // always start fresh
+        try { recognitionRef.current?.start(); } catch (e) {}
       }
-    }, 300);
+    }, 350);
   };
 
   const endSession = () => {
@@ -168,8 +201,7 @@ function App() {
     setIsSessionActive(false);
     setIsListening(false);
     setIsAiSpeaking(false);
-    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-    try { recognitionRef.current?.stop(); } catch (e) {}
+    stopListening();
     window.speechSynthesis?.cancel();
   };
 
@@ -181,23 +213,58 @@ function App() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false; // stop-and-restart gives cleaner results
-    recognition.interimResults = true;
+    recognition.continuous = true;        // ✅ Never stops mid-sentence
+    recognition.interimResults = true;    // ✅ Show live text while speaking
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+      setIsListening(true);
+      userTextRef.current = '';
+      lastInterimRef.current = '';
+    };
 
     recognition.onresult = (event) => {
-      let finalChunk = '';
-      let currentInterim = '';
+      let newFinal = '';
+      let interim = '';
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const chunk = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalChunk += chunk;
-        else currentInterim += chunk;
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) newFinal += transcript;
+        else interim += transcript;
       }
-      setInterimText(currentInterim);
-      if (finalChunk) userTextRef.current += ' ' + finalChunk;
+
+      if (newFinal) {
+        // ── Got a FINAL result ────────────────────────────────────────────
+        lastInterimRef.current = '';
+        clearInterimTimer(); // cancel interim fallback
+        userTextRef.current += ' ' + newFinal.trim();
+        setInterimText('');
+
+        // Start/reset silence timer — send after 1.2s of no more speech
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+          const text = userTextRef.current.trim();
+          if (text && isSessionActiveRef.current) dispatchSpeech(recognition, text);
+        }, SILENCE_MS);
+
+      } else if (interim) {
+        // ── Only interim (fast speech) ────────────────────────────────────
+        lastInterimRef.current = interim;
+        setInterimText(interim);
+
+        // Fallback: if we keep getting interim but never a final,
+        // wait INTERIM_FALLBACK_MS then treat interim as the final text
+        clearInterimTimer();
+        interimTimerRef.current = setTimeout(() => {
+          const fallback = lastInterimRef.current.trim();
+          if (fallback && isSessionActiveRef.current) {
+            userTextRef.current = fallback;
+            dispatchSpeech(recognition, fallback);
+          }
+        }, INTERIM_FALLBACK_MS);
+      }
     };
 
     recognition.onerror = (event) => {
@@ -205,9 +272,9 @@ function App() {
       if (event.error === 'not-allowed') {
         endSession();
         alert('Microphone access denied. Please allow microphone access.');
+        return;
       }
-      // On no-speech or network error, restart if session still active
-      if (['no-speech', 'network', 'audio-capture'].includes(event.error)) {
+      if (isSessionActiveRef.current && !isAiSpeakingRef.current) {
         setIsListening(false);
         safeStartListening();
       }
@@ -216,20 +283,39 @@ function App() {
     recognition.onend = () => {
       setIsListening(false);
       setInterimText('');
-      const spokenText = userTextRef.current.trim();
-      userTextRef.current = '';
 
-      if (spokenText && isSessionActiveRef.current) {
-        processUserSpeechRef.current?.(spokenText);
-      } else if (isSessionActiveRef.current && !isAiSpeakingRef.current && !isThinkingRef.current) {
-        // No speech detected but session is active — restart listening
+      // If recognition ended with interim but no final (fast speech cut-off)
+      const pendingFinal = userTextRef.current.trim();
+      const pendingInterim = lastInterimRef.current.trim();
+      const textToSend = pendingFinal || pendingInterim;
+
+      if (textToSend && isSessionActiveRef.current && !isAiSpeakingRef.current && !silenceTimerRef.current) {
+        // Already have text — process immediately
+        clearSilenceTimer();
+        clearInterimTimer();
+        userTextRef.current = '';
+        lastInterimRef.current = '';
+        processUserSpeechRef.current?.(textToSend);
+        return;
+      }
+
+      // Otherwise restart mic if session is still active
+      if (
+        isSessionActiveRef.current &&
+        !isAiSpeakingRef.current &&
+        !isThinkingRef.current &&
+        !silenceTimerRef.current &&
+        !interimTimerRef.current
+      ) {
         safeStartListening();
       }
     };
 
     return () => {
-      recognition.stop();
+      clearSilenceTimer();
+      clearInterimTimer();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      recognition.stop();
     };
   }, []);
 
