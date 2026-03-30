@@ -1,62 +1,44 @@
-# SpeakLift-AI
 # 🎤 SpeakLift AI
 
-**SpeakLift AI** is a real-time AI-powered English speaking coach that helps users improve their fluency, grammar, and confidence through continuous voice-based conversations.
+**SpeakLift AI** is a real-time AI-powered English speaking coach that helps users improve fluency, grammar, and confidence through continuous voice-based conversations — directly in the browser.
 
 ---
 
-## 🌐 Live Concept
+## 🌐 Overview
 
-SpeakLift AI works as a **browser-based voice assistant** where users can:
+SpeakLift AI enables users to:
 
-* Speak naturally using their microphone 🎤
-* Get instant AI responses 🤖
-* Receive grammar corrections ✏️
-* Practice unlimited English conversations 💬
+* 🎙 Speak naturally using their microphone
+* 🤖 Receive instant AI-generated responses
+* ✏️ Get grammar corrections
+* 📘 Understand mistakes with simple explanations
+* 💬 Practice unlimited conversations
 
 ---
 
 ## 🚀 Features
 
-* 🎙 **Real-Time Voice Interaction**
-  Speak directly with the AI using your microphone
-
-* ⚡ **Fast AI Responses**
-  Optimized for low-latency conversations
-
-* ✏️ **Grammar Correction**
-  Detects mistakes and provides corrected sentences
-
-* 📘 **Simple Explanations**
-  Explains errors in easy-to-understand English
-
-* 💡 **Better Suggestions**
-  Recommends improved vocabulary and phrasing
-
-* 🔁 **Continuous Conversation Mode**
-  No need to click buttons repeatedly
-
-* 🌙 **Modern UI**
-  Clean and user-friendly interface (with dark mode support)
+* 🎤 Real-Time Voice Interaction
+* ⚡ Fast AI Responses (low latency)
+* ✏️ Grammar Correction + Suggestions
+* 💡 Vocabulary Improvement Tips
+* 🔁 Continuous Conversation Mode
+* 🌙 Clean & Responsive UI (Mobile + Desktop)
 
 ---
 
-## 🧠 How It Works
+## 🧠 Architecture
 
-```
-User Speech 🎤
+```text
+User Browser 🎤
    ↓
-Speech-to-Text (Browser API)
+Frontend (Vercel)
    ↓
-Backend Server
+Backend (Render)
    ↓
-AI Model (ChatGPT API)
+Groq AI (LLM)
    ↓
-Text Response
-   ↓
-Text-to-Speech 🔊
-   ↓
-User hears response
+Response → Voice 🔊
 ```
 
 ---
@@ -76,35 +58,26 @@ User hears response
 
 ### AI
 
-* OpenAI API (ChatGPT)
+* Groq API (LLM for fast responses)
 
 ---
 
-## 📦 Installation & Setup
+## 📦 Local Setup
 
-### 1. Clone the repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/your-username/speaklift-ai.git
 cd speaklift-ai
 ```
 
+---
+
 ### 2. Setup Backend
 
 ```bash
 cd backend
 npm install
-```
-
-Create a `.env` file:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-Run backend:
-
-```bash
 npm start
 ```
 
@@ -120,60 +93,165 @@ npm run dev
 
 ---
 
-## 🔐 Environment Variables
+## 🚀 Deployment Guide (Free)
 
-| Variable       | Description         |
-| -------------- | ------------------- |
-| OPENAI_API_KEY | Your OpenAI API key |
+Deploy your app so anyone can access it from any device 🌍
 
 ---
 
-## ⚠️ Important Notes
+### 🔹 Step 1 — Push to GitHub
 
-* Do NOT expose your API key publicly
-* Add `.env` to `.gitignore`
-* Ensure microphone permissions are enabled in browser
+```bash
+git add .
+git commit -m "feat: deployment ready"
+git push
+```
+
+⚠️ Ensure `.env` files are in `.gitignore`
+❌ Never push API keys to GitHub
 
 ---
 
-## 📱 Usage
+### 🔹 Step 2 — Deploy Backend (Render)
 
-1. Open the app in browser
-2. Allow microphone access
-3. Start speaking in English
-4. Receive AI responses + corrections instantly
+Use Render
+
+1. Go to https://render.com → Sign up with GitHub
+2. Click **New + → Web Service**
+3. Select your repository
+
+#### Settings:
+
+| Field          | Value                 |
+| -------------- | --------------------- |
+| Name           | english-coach-backend |
+| Root Directory | backend               |
+| Runtime        | Node                  |
+| Build Command  | npm install           |
+| Start Command  | node server.js        |
+| Instance Type  | Free                  |
+
+#### Environment Variables:
+
+| Key  | Value |
+| ---- | ----- |
+| PORT | 5000  |
+
+⚠️ Do NOT add API key here (users provide their own)
+
+After deployment, you’ll get:
+
+```text
+https://english-coach-backend.onrender.com
+```
+
+---
+
+### 🔹 Step 3 — Deploy Frontend (Vercel)
+
+Use Vercel
+
+1. Go to https://vercel.com → Sign up with GitHub
+2. Click **Add New Project**
+3. Select your repository
+
+#### Settings:
+
+* Root Directory → `frontend`
+
+#### Environment Variable:
+
+| Key          | Value                                      |
+| ------------ | ------------------------------------------ |
+| VITE_API_URL | https://english-coach-backend.onrender.com |
+
+Click **Deploy**
+
+After deployment:
+
+```text
+https://your-app.vercel.app
+```
+
+---
+
+### 🔹 Step 4 — Test
+
+Open your app on:
+
+* 💻 Laptop
+* 📱 Mobile
+* 🌍 Any device
+
+👉 Users will:
+
+1. Enter their Groq API key
+2. Start speaking instantly 🎤
+
+---
+
+## 📱 Mobile Support
+
+| Feature            | Support                |
+| ------------------ | ---------------------- |
+| Speech Recognition | ✅ Chrome / Edge        |
+| Text-to-Speech     | ✅                      |
+| Responsive UI      | ✅                      |
+| Microphone Access  | ⚠️ Permission required |
+
+---
+
+## 🔄 Updates
+
+After pushing new code:
+
+* Vercel → Auto deploy frontend ✅
+* Render → Auto deploy backend ✅
+
+---
+
+## 💸 Cost Summary
+
+| Service  | Cost                              |
+| -------- | --------------------------------- |
+| Vercel   | 🆓 Free                           |
+| Render   | 🆓 Free (sleeps after inactivity) |
+| Groq API | 🆓 Free tier                      |
+| Total    | $0                                |
+
+⚠️ Note: Render free tier sleeps after 15 minutes inactivity (first request may take ~30s)
 
 ---
 
 ## 🎯 Goal
 
-To provide a **personal AI English speaking coach** that is:
+To build a **24/7 personal AI English speaking coach** that is:
 
 * Accessible anywhere 🌍
+* Fast ⚡
 * Easy to use 🎯
-* Available 24/7 ⏰
 
 ---
 
-## 🔮 Future Enhancements
+## 🔮 Future Improvements
 
-* 📊 Speaking performance analytics
-* 🧪 IELTS/Interview practice mode
-* 👤 User authentication system
+* 📊 Speaking analytics
+* 🧪 Interview / IELTS mode
+* 👤 User login system
 * 🌐 Multi-language support
-* 📱 Mobile app version
+* 📱 Native mobile app
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to fork this repository and submit pull requests.
+Feel free to fork and contribute!
 
 ---
 
 ## 📄 License
 
-This project is for educational and personal use.
+For educational use.
 
 ---
 
@@ -185,7 +263,7 @@ If you like this project, give it a ⭐ on GitHub!
 
 ## 👨‍💻 Author
 
-Developed by **[SEREDDY LOKESH]**
+Developed by **Your Name**
 
 ---
 
